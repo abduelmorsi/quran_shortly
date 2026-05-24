@@ -1,0 +1,504 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Download, Film, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { drawGenerativeBackground, wrapText } from './VideoPreview';
+
+export default function VideoExporter({ audio, verses, timestamps, styleConfig, onBackToEdit, t }) {
+  const [exportState, setExportState] = useState('idle'); // 'idle', 'exporting', 'completed', 'failed'
+  const [progress, setProgress] = useState(0);
+  const [downloadUrl, setDownloadUrl] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const exportCanvasRef = useRef(null);
+  const exportAudioRef = useRef(null);
+  const videoSourceRef = useRef(null);
+  const imageSourceRef = useRef(null);
+  
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const animationFrameRef = useRef(null);
+  const isExportingRef = useRef(false);
+
+  // Set export resolutions based on aspect ratios
+  const canvasWidth = styleConfig.aspectRatio === '9:16' ? 720 : 1280;
+  const canvasHeight = styleConfig.aspectRatio === '9:16' ? 1280 : 720;
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelExportFrames();
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    };
+  }, [downloadUrl]);
+
+  const cancelExportFrames = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+  };
+
+  const getActiveVerse = (time) => {
+    if (!timestamps || timestamps.length === 0) return null;
+    for (let i = 0; i < verses.length; i++) {
+      const start = timestamps[i];
+      // Keep last verse active all the way to the end of the audio to prevent early disappearance
+      const end = i === verses.length - 1 ? (audio ? audio.duration : 999999) : timestamps[i + 1];
+      
+      // Use the tapped end timestamp for the fade-out boundary if available
+      const fadeOutEnd = i === verses.length - 1 ? (timestamps[verses.length] || end) : end;
+      
+      if (start !== null && end !== null && time >= start && time <= end) {
+        return { verse: verses[i], start, end: fadeOutEnd };
+      }
+    }
+    return null;
+  };
+
+  // Main canvas render compilation loop
+  const drawExportFrame = () => {
+    const canvas = exportCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const time = Date.now();
+    
+    const audioEl = exportAudioRef.current;
+    if (!audioEl) return;
+    
+    const playTime = audioEl.currentTime;
+
+    // 1. Draw background
+    if (styleConfig.customBg) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+
+      if (styleConfig.customBg.type === 'video' && videoSourceRef.current) {
+        const video = videoSourceRef.current;
+        // Keep video loops aligned with timestamps
+        if (Math.abs(video.currentTime - (playTime % (video.duration || 10))) > 0.5) {
+          video.currentTime = playTime % (video.duration || 10);
+        }
+        ctx.drawImage(video, 0, 0, width, height);
+      } else if (styleConfig.customBg.type === 'image' && imageSourceRef.current) {
+        ctx.drawImage(imageSourceRef.current, 0, 0, width, height);
+      }
+    } else {
+      drawGenerativeBackground(ctx, width, height, styleConfig.bgType, time);
+    }
+
+    // 2. Draw overlay captions
+    const activeData = getActiveVerse(playTime);
+
+    if (activeData) {
+      const { verse: activeVerse, start, end } = activeData;
+      ctx.save();
+
+      // Apply fade transition if configured
+      if (styleConfig.verseTransition === 'fade') {
+        const elapsed = playTime - start;
+        const remaining = end - playTime;
+        const fadeDuration = 0.35; // 350ms transition
+        const fadeIn = Math.min(1, elapsed / fadeDuration);
+        const fadeOut = Math.min(1, remaining / fadeDuration);
+        ctx.globalAlpha = Math.min(fadeIn, fadeOut);
+      }
+
+      // Scaled layouts for High Resolution Exporter (720p/1280p)
+      const scaleMultiplier = styleConfig.aspectRatio === '9:16' ? 2 : 2; // scale factor from preview sizes
+      
+      let overlayY = height * 0.8;
+      if (styleConfig.overlayPosition === 'top') {
+        overlayY = height * 0.2;
+      } else if (styleConfig.overlayPosition === 'center') {
+        overlayY = height * 0.5;
+      }
+
+      const cardMaxWidth = width * 0.85;
+      const paddingX = 24 * scaleMultiplier;
+      const paddingY = 24 * scaleMultiplier;
+
+      const arabicFont = styleConfig.arabicFont === 'quranic' ? "'Scheherazade New', serif" : "'Amiri', serif";
+      const arabicFontSize = styleConfig.arabicFontSize * scaleMultiplier;
+      const arabicLineHeight = arabicFontSize * 2.2; // Exceptional line height for stacked Quranic vocalization (tashkeel)
+      
+      const englishFontSize = styleConfig.englishFontSize * scaleMultiplier;
+      const englishLineHeight = englishFontSize * 1.45; // Premium vertical space for subtitles
+
+      ctx.font = `bold ${arabicFontSize}px ${arabicFont}`;
+      const arabicLines = wrapText(ctx, activeVerse.text, 0, 0, cardMaxWidth - (paddingX * 2), arabicLineHeight, true);
+      
+      let englishLines = [];
+      if (styleConfig.showEnglish) {
+        ctx.font = `${englishFontSize}px var(--font-sans)`;
+        englishLines = wrapText(ctx, activeVerse.translation, 0, 0, cardMaxWidth - (paddingX * 2), englishLineHeight, false);
+      }
+
+      const spaceBetween = styleConfig.showEnglish ? 24 * scaleMultiplier : 0; // Increased spacing for nice separation
+      const totalContentHeight = 
+        (arabicLines.length * arabicLineHeight) + 
+        spaceBetween + 
+        (englishLines.length * englishLineHeight);
+
+      const cardWidth = cardMaxWidth;
+      const cardHeight = totalContentHeight + (paddingY * 2);
+      const cardX = (width - cardWidth) / 2;
+      const cardY = overlayY - (cardHeight / 2);
+
+      // Card style rendering
+      if (styleConfig.cardStyle === 'glass') {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+        ctx.shadowBlur = 40;
+        ctx.shadowOffsetY = 20;
+        
+        ctx.fillStyle = 'rgba(10, 11, 20, 0.68)';
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 32);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+      } else if (styleConfig.cardStyle === 'classic') {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 16);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Render Uthmani Script text
+      ctx.save();
+      ctx.font = `bold ${arabicFontSize}px ${arabicFont}`;
+      ctx.fillStyle = styleConfig.arabicColor;
+      ctx.textAlign = 'center';
+      
+      ctx.shadowColor = styleConfig.arabicColor === '#d4af37' ? 'rgba(212, 175, 55, 0.6)' : 'rgba(255, 255, 255, 0.5)';
+      ctx.shadowBlur = 20;
+
+      let drawY = cardY + paddingY + (arabicFontSize * 0.85);
+
+      arabicLines.forEach((line) => {
+        ctx.fillText(line, width / 2, drawY);
+        drawY += arabicLineHeight;
+      });
+      ctx.restore();
+
+      // Render English Sahih translation text
+      if (styleConfig.showEnglish && englishLines.length > 0) {
+        ctx.save();
+        ctx.font = `500 ${englishFontSize}px var(--font-sans)`;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 4;
+
+        let englishDrawY = cardY + paddingY + (arabicLines.length * arabicLineHeight) + spaceBetween + (englishFontSize * 0.85);
+
+        englishLines.forEach((line) => {
+          ctx.fillText(line, width / 2, englishDrawY);
+          englishDrawY += englishLineHeight;
+        });
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // Capture frames recursively until compilation concludes
+    if (isExportingRef.current) {
+      animationFrameRef.current = requestAnimationFrame(drawExportFrame);
+    }
+  };
+
+  const handleStartExport = async () => {
+    try {
+      isExportingRef.current = true;
+      setExportState('exporting');
+      setProgress(0);
+      recordedChunksRef.current = [];
+
+      const canvas = exportCanvasRef.current;
+      const audioEl = exportAudioRef.current;
+
+      if (!canvas || !audioEl) {
+        throw new Error('Canvas or audio element not mounted');
+      }
+
+      // Reset and play custom video backgrounds if any
+      if (styleConfig.customBg?.type === 'video' && videoSourceRef.current) {
+        videoSourceRef.current.currentTime = 0;
+        await videoSourceRef.current.play().catch(e => console.log("Video prep play:", e));
+      }
+
+      // 1. Capture Canvas Stream at 30 fps
+      const canvasStream = canvas.captureStream(30);
+
+      // 2. Mix audio using Web Audio API to guarantee crystal clear output
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioSourceNode = audioCtx.createMediaElementSource(audioEl);
+      const audioDestinationNode = audioCtx.createMediaStreamDestination();
+      
+      // Connect nodes: Source -> Destination (so recorded) and Source -> Speakers (so user hears it during export!)
+      audioSourceNode.connect(audioDestinationNode);
+      audioSourceNode.connect(audioCtx.destination);
+
+      // 3. Assemble combined stream
+      const recordedStream = new MediaStream();
+      recordedStream.addTrack(canvasStream.getVideoTracks()[0]);
+      recordedStream.addTrack(audioDestinationNode.stream.getAudioTracks()[0]);
+
+      // 4. Select standard mimeTypes
+      let mimeType = 'video/webm;codecs=vp9,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm;codecs=vp8,opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm';
+        }
+      }
+
+      // 5. Instantiate MediaRecorder
+      const mediaRecorder = new MediaRecorder(recordedStream, {
+        mimeType,
+        videoBitsPerSecond: 4000000 // High 4Mbps bitrate for pristine crisp text
+      });
+
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        isExportingRef.current = false;
+        // Collect tracks and terminate
+        recordedStream.getTracks().forEach(track => track.stop());
+        audioCtx.close();
+
+        const videoBlob = new Blob(recordedChunksRef.current, { type: mimeType });
+        const url = URL.createObjectURL(videoBlob);
+        setDownloadUrl(url);
+        setExportState('completed');
+        setProgress(100);
+      };
+
+      // Seek audio to zero and start playback
+      audioEl.currentTime = 0;
+      audioEl.play().catch(err => {
+        throw new Error('Please click inside the page to allow audio playback.');
+      });
+
+      // Start frames rendering and MediaRecorder encoding
+      mediaRecorder.start(10); // Capture data chunks every 10ms
+      drawExportFrame();
+
+      // Monitor compilation progress using audio time
+      const finalEndTime = timestamps[verses.length] || audio.duration;
+      
+      const interval = setInterval(() => {
+        if (audioEl.currentTime >= finalEndTime || audioEl.ended) {
+          clearInterval(interval);
+          mediaRecorder.stop();
+          audioEl.pause();
+          if (styleConfig.customBg?.type === 'video' && videoSourceRef.current) {
+            videoSourceRef.current.pause();
+          }
+          cancelExportFrames();
+        } else {
+          const currentProgress = (audioEl.currentTime / finalEndTime) * 100;
+          setProgress(Math.min(99, Math.round(currentProgress)));
+        }
+      }, 100);
+
+    } catch (err) {
+      isExportingRef.current = false;
+      console.error('Export compilation error:', err);
+      setErrorMessage(err.message || 'An unexpected error occurred during rendering.');
+      setExportState('failed');
+      cancelExportFrames();
+    }
+  };
+
+  const getFileName = () => {
+    const surahName = styleConfig.surahName || 'Quran';
+    const range = `${timestamps[0] ? 'synced' : 'edit'}`;
+    return `Quran_Shortly_${surahName}_${range}.webm`;
+  };
+
+  return (
+    <div className="glass-panel" style={{ maxWidth: '650px', margin: '0 auto', textAlign: 'center' }}>
+      {/* Hidden high-res canvas serving the export compiler */}
+      <canvas
+        ref={exportCanvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        className="hidden-canvas"
+      />
+
+      {/* Hidden compilation assets */}
+      <audio
+        ref={exportAudioRef}
+        src={audio.url}
+        preload="auto"
+      />
+
+      {styleConfig.customBg && styleConfig.customBg.type === 'video' && (
+        <video
+          ref={videoSourceRef}
+          src={styleConfig.customBg.url}
+          style={{ display: 'none' }}
+          muted
+          playsInline
+          crossOrigin="anonymous"
+        />
+      )}
+      {styleConfig.customBg && styleConfig.customBg.type === 'image' && (
+        <img
+          ref={imageSourceRef}
+          src={styleConfig.customBg.url}
+          style={{ display: 'none' }}
+          alt="Export background"
+          crossOrigin="anonymous"
+        />
+      )}
+
+      {/* IDLE VIEW */}
+      {exportState === 'idle' && (
+        <div className="export-panel-layout">
+          <div className="logo-icon" style={{ width: '72px', height: '72px', borderRadius: '20px', margin: '0 auto' }}>
+            <Film size={40} />
+          </div>
+          <div>
+            <h2 className="glass-title" style={{ fontSize: '1.6rem' }}>{t.compileTitle}</h2>
+            <p className="glass-description" style={{ marginTop: '8px' }}>
+              {t.compileDesc}
+            </p>
+          </div>
+
+          <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-default)', width: '100%', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'initial', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h4 style={{ margin: '0 0 4px 0', color: '#fff', fontSize: '0.9rem' }}>{t.detailsLabel}</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>{t.aspectRatioLabel}</span>
+              <strong style={{ color: '#fff' }}>{styleConfig.aspectRatio}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>{t.resolutionLabel}</span>
+              <strong style={{ color: '#fff' }}>{canvasWidth} x {canvasHeight}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>{t.outputFormatLabel}</span>
+              <strong style={{ color: '#fff' }}>{t.formatValue}</strong>
+            </div>
+          </div>
+
+          <button className="btn btn-primary" onClick={handleStartExport} style={{ width: '100%', padding: '14px', fontSize: '1rem' }}>
+            <Film size={18} />
+            {t.startCompile}
+          </button>
+        </div>
+      )}
+
+      {/* EXPORTING COMPILATION PROGRESS VIEW */}
+      {exportState === 'exporting' && (
+        <div className="export-panel-layout">
+          <div className="export-progress-circle" style={{ '--progress': progress }}>
+            <span className="export-progress-text">{progress}%</span>
+          </div>
+
+          <div>
+            <h3 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 700, marginBottom: '6px' }}>{t.compilingTitle}</h3>
+            <p className="glass-description" style={{ fontSize: '0.85rem' }}>
+              {t.compilingDesc}
+            </p>
+          </div>
+
+          <div className="export-progress-bar-linear">
+            <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem' }}>
+            <Loader2 className="spinner" size={16} />
+            {t.renderingFrames}
+          </div>
+        </div>
+      )}
+
+      {/* COMPLETED SUCCESS VIEW */}
+      {exportState === 'completed' && (
+        <div className="export-panel-layout">
+          <div className="logo-icon" style={{ background: 'var(--accent)', width: '72px', height: '72px', borderRadius: '20px', margin: '0 auto' }}>
+            <CheckCircle2 size={40} style={{ color: '#fff' }} />
+          </div>
+
+          <div>
+            <h2 className="glass-title" style={{ fontSize: '1.6rem', color: 'var(--accent)' }}>{t.successTitle}</h2>
+            <p className="glass-description" style={{ marginTop: '8px' }}>
+              {t.successDesc}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <a
+              href={downloadUrl}
+              download={getFileName()}
+              className="btn btn-success"
+              style={{ flex: 1, padding: '16px', justifyContent: 'center', textDecoration: 'none', textAlign: 'center' }}
+            >
+              <Download size={20} />
+              {t.downloadVideo}
+            </a>
+            
+            <button
+              className="btn"
+              onClick={() => {
+                setExportState('idle');
+                if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+                setDownloadUrl(null);
+                onBackToEdit();
+              }}
+              style={{ padding: '16px' }}
+            >
+              {t.redesignStyle}
+            </button>
+          </div>
+
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
+            {t.formatSupportDesc}
+          </p>
+        </div>
+      )}
+
+      {/* FAIL/ERROR VIEW */}
+      {exportState === 'failed' && (
+        <div className="export-panel-layout" style={{ gap: '20px' }}>
+          <div className="logo-icon" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', width: '80px', height: '80px', borderRadius: '24px', margin: '0 auto' }}>
+            <AlertTriangle size={40} style={{ color: '#f87171' }} />
+          </div>
+
+          <div>
+            <h2 className="glass-title" style={{ fontSize: '1.5rem', color: '#f87171' }}>{t.failedTitle}</h2>
+            <p className="glass-description" style={{ marginTop: '8px', color: '#f87171', background: 'rgba(239, 68, 68, 0.05)', padding: '12px', borderRadius: '8px', fontSize: '0.85rem' }}>
+              {errorMessage}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <button className="btn btn-primary" onClick={handleStartExport} style={{ flex: 1 }}>
+              {t.retry}
+            </button>
+            <button className="btn" onClick={onBackToEdit}>
+              {t.editStyles}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
