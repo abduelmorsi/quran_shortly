@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, Film, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { drawGenerativeBackground, wrapText } from './VideoPreview';
+import ysFixWebmDuration from 'fix-webm-duration';
 
 export default function VideoExporter({ audio, verses, timestamps, styleConfig, onBackToEdit, t }) {
   const [exportState, setExportState] = useState('idle'); // 'idle', 'exporting', 'completed', 'failed'
@@ -396,15 +397,33 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         isExportingRef.current = false;
         // Collect tracks and terminate
         recordedStream.getTracks().forEach(track => track.stop());
         audioCtx.close();
 
-        const videoBlob = new Blob(recordedChunksRef.current, { type: mimeType });
-        const url = URL.createObjectURL(videoBlob);
-        setDownloadUrl(url);
+        const rawBlob = new Blob(recordedChunksRef.current, { type: mimeType });
+
+        // Fix duration metadata for WebM videos so that seek bars and progress sliders function perfectly on all players
+        if (outputFormat === 'webm') {
+          try {
+            const durationMs = audioEl.currentTime * 1000;
+            const fixedBlob = await ysFixWebmDuration(rawBlob, durationMs);
+            const url = URL.createObjectURL(fixedBlob);
+            setDownloadUrl(url);
+          } catch (err) {
+            console.error("WebM duration patching failed:", err);
+            // Fallback to raw blob in case of library failure
+            const url = URL.createObjectURL(rawBlob);
+            setDownloadUrl(url);
+          }
+        } else {
+          // MP4 containers naturally write duration indexes on Chromium platforms
+          const url = URL.createObjectURL(rawBlob);
+          setDownloadUrl(url);
+        }
+
         setExportState('completed');
         setProgress(100);
       };
