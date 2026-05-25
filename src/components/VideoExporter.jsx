@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, Film, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { drawGenerativeBackground, wrapText } from './VideoPreview';
-import ysFixWebmDuration from 'fix-webm-duration';
+import fixWebmDuration from 'webm-duration-fix';
 
 export default function VideoExporter({ audio, verses, timestamps, styleConfig, onBackToEdit, t }) {
   const [exportState, setExportState] = useState('idle'); // 'idle', 'exporting', 'completed', 'failed'
@@ -408,8 +408,7 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
         // Fix duration metadata for WebM videos so that seek bars and progress sliders function perfectly on all players
         if (outputFormat === 'webm') {
           try {
-            const durationMs = audioEl.currentTime * 1000;
-            const fixedBlob = await ysFixWebmDuration(rawBlob, durationMs);
+            const fixedBlob = await fixWebmDuration(rawBlob);
             const url = URL.createObjectURL(fixedBlob);
             setDownloadUrl(url);
           } catch (err) {
@@ -435,7 +434,7 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
       });
 
       // Start frames rendering and MediaRecorder encoding
-      mediaRecorder.start(10); // Capture data chunks every 10ms
+      mediaRecorder.start(); // Capture data continuously
       drawExportFrame();
 
       // Monitor compilation progress using audio time
@@ -641,9 +640,38 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
             </button>
           </div>
 
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
-            {t.formatSupportDesc}
-          </p>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '16px',
+            padding: '16px',
+            marginTop: '8px',
+            textAlign: 'initial',
+            width: '100%',
+            fontSize: '0.8rem',
+            lineHeight: '1.5',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)'
+          }}>
+            {outputFormat === 'mp4' ? (
+              <>
+                <h4 style={{ margin: '0 0 6px 0', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                  ⚠️ {t.mp4NoticeTitle}
+                </h4>
+                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+                  {t.mp4NoticeDesc}
+                </p>
+              </>
+            ) : (
+              <>
+                <h4 style={{ margin: '0 0 6px 0', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                  ✨ {t.webmNoticeTitle}
+                </h4>
+                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+                  {t.webmNoticeDesc}
+                </p>
+              </>
+            )}
+          </div>
         </div>
       )}
 

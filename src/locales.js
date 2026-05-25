@@ -119,7 +119,11 @@ export const translations = {
     outputFormatOption: "Video Output Format",
     mp4Label: "MP4 (Highly Compatible)",
     webmLabel: "WebM (High Quality)",
-    notSupportedNote: "MP4 format is not natively supported in your browser. Defaulting to WebM."
+    notSupportedNote: "MP4 format is not natively supported in your browser. Defaulting to WebM.",
+    mp4NoticeTitle: "Mobile Compatibility Notice",
+    mp4NoticeDesc: "The browser encodes MP4 in real-time as a fragmented stream. This plays perfectly on PC and is 100% ready for upload to YouTube Shorts, TikTok, or Instagram Reels (which automatically re-encode and optimize it anyway). However, native mobile players (like iOS QuickTime) require a metadata header at the start for local scrubbing. If you need perfect seek/drag controls on your phone, we recommend exporting as WebM instead.",
+    webmNoticeTitle: "WebM Seeking Fully Restored!",
+    webmNoticeDesc: "WebM is now fully seekable and highly optimized. You can scrub and seek through it perfectly on PC and any browser/player supporting WebM. It is completely ready for editing and social media uploads."
   },
   ar: {
     // App Header & Steps
@@ -241,6 +245,10 @@ export const translations = {
     outputFormatOption: "خيار صيغة الفيديو",
     mp4Label: "MP4 (توافقية عالية)",
     webmLabel: "WebM (جودة عالية)",
-    notSupportedNote: "صيغة MP4 غير مدعومة في متصفحك حالياً. سيتم استخدام WebM تلقائياً."
+    notSupportedNote: "صيغة MP4 غير مدعومة في متصفحك حالياً. سيتم استخدام WebM تلقائياً.",
+    mp4NoticeTitle: "ملاحظة حول التوافق مع الهواتف",
+    mp4NoticeDesc: "يقوم المتصفح بترميز صيغة MP4 في الوقت الفعلي كبث مجزأ. هذا المقطع يعمل بشكل ممتاز على أجهزة الكمبيوتر وهو جاهز تماماً للرفع على يوتيوب شورتس، تيك توك، وإنستغرام ريلز (حيث تعيد هذه المنصات تهيئة وتعديل الملف تلقائياً). ومع ذلك، فإن مشغلات الفيديو للهواتف (مثل هواتف آيفون) قد لا تدعم سحب شريط التوقيت محلياً لهذا الملف. إذا كنت بحاجة للتحكم الكامل وسحب شريط التوقيت بشكل مثالي على هاتفك محلياً، نوصي بالتصدير بصيغة WebM بدلاً من ذلك.",
+    webmNoticeTitle: "تم إصلاح شريط تقدّم WebM بالكامل!",
+    webmNoticeDesc: "صيغة WebM الآن قابلة للسحب والتنقل بالكامل ومحسّنة للغاية. يمكنك سحب شريط التقدم والتنقل فيه بشكل مثالي على الكمبيوتر وأي متصفح أو مشغل يدعم صيغة WebM. وهي جاهزة تماماً للنشر والمشاركة."
   }
 };
