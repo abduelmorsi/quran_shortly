@@ -75,8 +75,7 @@ export default function StyleEditor({ styleConfig, onChange, onCustomBgUploaded,
               className={`bg-thumb ${styleConfig.bgType === preset.id ? 'active' : ''}`}
               style={{ backgroundColor: preset.color }}
               onClick={() => {
-                updateConfig('bgType', preset.id);
-                updateConfig('customBg', null);
+                onChange({ ...styleConfig, bgType: preset.id, customBg: null });
               }}
             >
               <div className="bg-thumb-label">{preset.name}</div>
@@ -107,8 +106,7 @@ export default function StyleEditor({ styleConfig, onChange, onCustomBgUploaded,
               className="btn btn-danger"
               style={{ padding: '4px 8px', fontSize: '0.75rem' }}
               onClick={() => {
-                updateConfig('bgType', 'aurora');
-                updateConfig('customBg', null);
+                onChange({ ...styleConfig, bgType: 'aurora', customBg: null });
               }}
             >
               {t.remove}
@@ -124,6 +122,37 @@ export default function StyleEditor({ styleConfig, onChange, onCustomBgUploaded,
             {t.uploadPlaceholder}
           </button>
         )}
+
+        {/* Background custom controls */}
+        <div className="form-group" style={{ marginTop: '16px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', margin: 0 }}>{t.bgOpacity}</label>
+            <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', fontWeight: 700 }}>{Math.round(styleConfig.bgOpacity * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="1.0"
+            step="0.05"
+            value={styleConfig.bgOpacity}
+            onChange={(e) => updateConfig('bgOpacity', parseFloat(e.target.value))}
+          />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '5px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', margin: 0 }}>{t.bgBlur}</label>
+            <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', fontWeight: 700 }}>{styleConfig.bgBlur}px</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            value={styleConfig.bgBlur}
+            onChange={(e) => updateConfig('bgBlur', parseInt(e.target.value))}
+          />
+        </div>
       </div>
 
       {/* TEXT CARD STYLE */}
@@ -195,7 +224,7 @@ export default function StyleEditor({ styleConfig, onChange, onCustomBgUploaded,
           />
         </div>
 
-        <div className="form-group" style={{ marginBottom: '5px' }}>
+        <div className="form-group" style={{ marginBottom: '12px' }}>
           <label className="form-label" style={{ fontSize: '0.8rem' }}>{t.textColor}</label>
           <div className="grid-2col">
             <button
@@ -207,9 +236,26 @@ export default function StyleEditor({ styleConfig, onChange, onCustomBgUploaded,
             <button
               className={`style-option-btn ${styleConfig.arabicColor === '#d4af37' ? 'active' : ''}`}
               onClick={() => updateConfig('arabicColor', '#d4af37')}
-              style={{ color: '#d4af37' }}
             >
               {t.islamicGold}
+            </button>
+          </div>
+        </div>
+
+        <div className="form-group" style={{ marginTop: '12px', marginBottom: '5px' }}>
+          <label className="form-label" style={{ fontSize: '0.8rem' }}>{t.boldCalligraphy}</label>
+          <div className="grid-2col">
+            <button
+              className={`style-option-btn ${styleConfig.arabicFontBold ? 'active' : ''}`}
+              onClick={() => updateConfig('arabicFontBold', true)}
+            >
+              {t.show}
+            </button>
+            <button
+              className={`style-option-btn ${!styleConfig.arabicFontBold ? 'active' : ''}`}
+              onClick={() => updateConfig('arabicFontBold', false)}
+            >
+              {t.hide}
             </button>
           </div>
         </div>
@@ -277,6 +323,66 @@ export default function StyleEditor({ styleConfig, onChange, onCustomBgUploaded,
             {t.instantSwitch}
           </button>
         </div>
+      </div>
+
+      {/* VIDEO METADATA HEADER */}
+      <div className="section-card">
+        <h3 className="section-card-title">
+          <Type size={16} style={{ color: 'var(--primary)' }} />
+          {t.showMetadataLabel}
+        </h3>
+        
+        <div className="form-group" style={{ marginBottom: '12px' }}>
+          <label className="form-label" style={{ fontSize: '0.8rem' }}>{t.showMetadataLabel}</label>
+          <div className="grid-2col">
+            <button
+              className={`style-option-btn ${styleConfig.showMetadata ? 'active' : ''}`}
+              onClick={() => updateConfig('showMetadata', true)}
+            >
+              {t.show}
+            </button>
+            <button
+              className={`style-option-btn ${!styleConfig.showMetadata ? 'active' : ''}`}
+              onClick={() => updateConfig('showMetadata', false)}
+            >
+              {t.hide}
+            </button>
+          </div>
+        </div>
+
+        {styleConfig.showMetadata && (
+          <>
+            <div className="form-group" style={{ marginBottom: '12px' }}>
+              <label className="form-label" style={{ fontSize: '0.8rem' }}>{t.reciterPlaceholder}</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder={t.reciterPlaceholder}
+                value={styleConfig.reciterName}
+                onChange={(e) => updateConfig('reciterName', e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '5px' }}>
+              <label className="form-label" style={{ fontSize: '0.8rem' }}>{t.metadataPosLabel}</label>
+              <div className="grid-2col">
+                <button
+                  className={`style-option-btn ${styleConfig.metadataPosition === 'top' ? 'active' : ''}`}
+                  onClick={() => updateConfig('metadataPosition', 'top')}
+                >
+                  {t.top}
+                </button>
+                <button
+                  className={`style-option-btn ${styleConfig.metadataPosition === 'bottom' ? 'active' : ''}`}
+                  onClick={() => updateConfig('metadataPosition', 'bottom')}
+                >
+                  {t.bottom}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* LAYOUT ALIGNMENT */}

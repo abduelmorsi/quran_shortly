@@ -37,7 +37,14 @@ function App() {
     englishFontSize: 18,
     overlayPosition: 'bottom', // 'top', 'center', 'bottom'
     surahName: '',
-    verseTransition: 'fade' // 'fade' or 'none'
+    surahNameArabic: '',
+    verseTransition: 'fade', // 'fade' or 'none'
+    bgOpacity: 0.8,      // 0.1 to 1.0 (slightly dimmed background)
+    bgBlur: 0,           // 0 to 20px blur
+    showMetadata: true,
+    reciterName: '',
+    metadataPosition: 'top', // 'top' or 'bottom'
+    arabicFontBold: true
   });
 
   const handleAudioLoaded = (audioData) => {
@@ -52,7 +59,8 @@ function App() {
     setTimestamps([]);
     setStyleConfig(prev => ({
       ...prev,
-      surahName: selection.surah.englishName
+      surahName: selection.surah.englishName,
+      surahNameArabic: selection.surah.name
     }));
   };
 

@@ -186,6 +186,19 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
   const imageElementRef = useRef(null);
   const animationFrameRef = useRef(null);
 
+  // Sync refs to prevent render lag and closure bugs
+  const styleConfigRef = useRef(styleConfig);
+  const versesRef = useRef(verses);
+  const timestampsRef = useRef(timestamps);
+  const isPlayingRef = useRef(isPlaying);
+
+  useEffect(() => {
+    styleConfigRef.current = styleConfig;
+    versesRef.current = verses;
+    timestampsRef.current = timestamps;
+    isPlayingRef.current = isPlaying;
+  }, [styleConfig, verses, timestamps, isPlaying]);
+
   // Sync isPlaying state
   const handleTogglePlay = () => {
     if (!audioRef.current) return;
@@ -203,20 +216,22 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
     }
   };
 
-  // Determine current active verse based on time
+  // Determine current active verse based on time (reading from refs)
   const getActiveVerse = (time) => {
-    if (!timestamps || timestamps.length === 0) return null;
+    const currentTimestamps = timestampsRef.current;
+    const currentVerses = versesRef.current;
+    if (!currentTimestamps || currentTimestamps.length === 0) return null;
     
-    for (let i = 0; i < verses.length; i++) {
-      const start = timestamps[i];
+    for (let i = 0; i < currentVerses.length; i++) {
+      const start = currentTimestamps[i];
       // Keep last verse active all the way to the end of the audio to prevent early disappearance
-      const end = i === verses.length - 1 ? (audio ? audio.duration : 999999) : timestamps[i + 1];
+      const end = i === currentVerses.length - 1 ? (audio ? audio.duration : 999999) : currentTimestamps[i + 1];
       
       // Use the tapped end timestamp for the fade-out boundary if available
-      const fadeOutEnd = i === verses.length - 1 ? (timestamps[verses.length] || end) : end;
+      const fadeOutEnd = i === currentVerses.length - 1 ? (currentTimestamps[currentVerses.length] || end) : end;
       
       if (start !== null && end !== null && time >= start && time <= end) {
-        return { verse: verses[i], start, end: fadeOutEnd };
+        return { verse: currentVerses[i], start, end: fadeOutEnd };
       }
     }
     return null;
@@ -235,7 +250,17 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
     const playTime = audioRef.current ? audioRef.current.currentTime : 0;
     setCurrentTime(playTime);
 
+    // Extract the latest values from refs to keep the frame draw perfect
+    const styleConfig = styleConfigRef.current;
+    const verses = versesRef.current;
+    const timestamps = timestampsRef.current;
+
     // 1. Draw Background
+    ctx.save();
+    if (styleConfig.bgBlur && styleConfig.bgBlur > 0) {
+      ctx.filter = `blur(${styleConfig.bgBlur}px)`;
+    }
+
     if (styleConfig.customBg) {
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, width, height);
@@ -252,6 +277,15 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       }
     } else {
       drawGenerativeBackground(ctx, width, height, styleConfig.bgType, time);
+    }
+    ctx.restore();
+
+    // Apply Background Opacity overlay (dimming)
+    if (styleConfig.bgOpacity !== undefined && styleConfig.bgOpacity < 1.0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(0, 0, 0, ${1.0 - styleConfig.bgOpacity})`;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
     }
 
     // 2. Overlay Verses
@@ -345,7 +379,8 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
 
       // Draw Calligraphy Arabic Script
       ctx.save();
-      ctx.font = `bold ${arabicFontSize}px ${arabicFont}`;
+      const isBold = styleConfig.arabicFontBold !== false ? 'bold ' : '';
+      ctx.font = `${isBold}${arabicFontSize}px ${arabicFont}`;
       ctx.fillStyle = styleConfig.arabicColor;
       ctx.textAlign = 'center';
       
@@ -383,19 +418,83 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       ctx.restore();
     }
 
+    // 3. Draw Metadata Header (Surah and Reciter)
+    if (styleConfig.showMetadata) {
+      ctx.save();
+      const isArabicUI = document.documentElement.lang === 'ar';
+      
+      const metaFontSize = 14;
+      const reciterFontSize = 12;
+      
+      ctx.font = `600 ${metaFontSize}px var(--font-sans)`;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.textAlign = 'center';
+      
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 1;
+      
+      const startAyahNum = verses[0]?.numberInSurah || 1;
+      const endAyahNum = verses[verses.length - 1]?.numberInSurah || startAyahNum;
+      
+      let surahLabel = '';
+      let surahNameDisp = styleConfig.surahName || '';
+      
+      if (isArabicUI) {
+        if (styleConfig.surahNameArabic) {
+          surahNameDisp = styleConfig.surahNameArabic;
+        } else {
+          surahLabel = 'سورة ';
+        }
+      } else {
+        surahLabel = 'Surah ';
+      }
+      
+      let metadataText = '';
+      if (isArabicUI && surahNameDisp.includes('سُورَة')) {
+        metadataText = `${surahNameDisp} (${startAyahNum}-${endAyahNum})`;
+      } else {
+        metadataText = `${surahLabel}${surahNameDisp} (${startAyahNum}-${endAyahNum})`;
+      }
+      
+      // Fine-tuned placement based on aspect ratio
+      const isVertical = styleConfig.aspectRatio === '9:16';
+      let metaY = styleConfig.metadataPosition === 'top' 
+        ? (isVertical ? height * 0.08 : height * 0.12) 
+        : (isVertical ? height * 0.92 : height * 0.88);
+      
+      ctx.fillText(metadataText, width / 2, metaY);
+      
+      if (styleConfig.reciterName) {
+        ctx.font = `500 ${reciterFontSize}px var(--font-sans)`;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        
+        const reciterText = isArabicUI 
+          ? `بصوت: ${styleConfig.reciterName}` 
+          : `Reciter: ${styleConfig.reciterName}`;
+        ctx.fillText(reciterText, width / 2, metaY + 16);
+      }
+      ctx.restore();
+    }
+
+    // Cancel any active animation frames before scheduling the next recursive tick to avoid loop accumulation leaks
     if (isPlaying) {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = requestAnimationFrame(renderCanvasFrame);
     }
   };
 
-  // Re-run canvas paint if any style changes while paused
+  // Re-run canvas paint if any style changes while paused (prevents duplicate draw loops when playing)
   useEffect(() => {
-    renderCanvasFrame();
-  }, [styleConfig, verses, timestamps]);
+    if (!isPlaying) {
+      renderCanvasFrame();
+    }
+  }, [styleConfig, verses, timestamps, isPlaying]);
 
-  // Restart canvas paint when isPlaying changes
+  // Handle canvas animation thread play/pause state transitions
   useEffect(() => {
     if (isPlaying) {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = requestAnimationFrame(renderCanvasFrame);
     } else {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);

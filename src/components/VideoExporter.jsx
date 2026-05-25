@@ -70,6 +70,11 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
     const playTime = audioEl.currentTime;
 
     // 1. Draw background
+    ctx.save();
+    if (styleConfig.bgBlur && styleConfig.bgBlur > 0) {
+      ctx.filter = `blur(${styleConfig.bgBlur}px)`;
+    }
+
     if (styleConfig.customBg) {
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, width, height);
@@ -86,6 +91,15 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
       }
     } else {
       drawGenerativeBackground(ctx, width, height, styleConfig.bgType, time);
+    }
+    ctx.restore();
+
+    // Apply Background Opacity overlay (dimming)
+    if (styleConfig.bgOpacity !== undefined && styleConfig.bgOpacity < 1.0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(0, 0, 0, ${1.0 - styleConfig.bgOpacity})`;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
     }
 
     // 2. Draw overlay captions
@@ -173,7 +187,8 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
 
       // Render Uthmani Script text
       ctx.save();
-      ctx.font = `bold ${arabicFontSize}px ${arabicFont}`;
+      const isBold = styleConfig.arabicFontBold !== false ? 'bold ' : '';
+      ctx.font = `${isBold}${arabicFontSize}px ${arabicFont}`;
       ctx.fillStyle = styleConfig.arabicColor;
       ctx.textAlign = 'center';
       
@@ -207,6 +222,65 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
         ctx.restore();
       }
 
+      ctx.restore();
+    }
+
+    // 3. Render dynamic metadata headers (Surah and Reciter)
+    if (styleConfig.showMetadata) {
+      ctx.save();
+      const scaleMultiplier = styleConfig.aspectRatio === '9:16' ? 2 : 2;
+      const isArabicUI = document.documentElement.lang === 'ar';
+      
+      const metaFontSize = 14 * scaleMultiplier;
+      const reciterFontSize = 12 * scaleMultiplier;
+      
+      ctx.font = `600 ${metaFontSize}px var(--font-sans)`;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.textAlign = 'center';
+      
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 8 * scaleMultiplier;
+      ctx.shadowOffsetY = 2 * scaleMultiplier;
+      
+      const startAyahNum = verses[0]?.numberInSurah || 1;
+      const endAyahNum = verses[verses.length - 1]?.numberInSurah || startAyahNum;
+      
+      let surahLabel = '';
+      let surahNameDisp = styleConfig.surahName || '';
+      
+      if (isArabicUI) {
+        if (styleConfig.surahNameArabic) {
+          surahNameDisp = styleConfig.surahNameArabic;
+        } else {
+          surahLabel = 'سورة ';
+        }
+      } else {
+        surahLabel = 'Surah ';
+      }
+      
+      let metadataText = '';
+      if (isArabicUI && surahNameDisp.includes('سُورَة')) {
+        metadataText = `${surahNameDisp} (${startAyahNum}-${endAyahNum})`;
+      } else {
+        metadataText = `${surahLabel}${surahNameDisp} (${startAyahNum}-${endAyahNum})`;
+      }
+      
+      const isVertical = styleConfig.aspectRatio === '9:16';
+      let metaY = styleConfig.metadataPosition === 'top' 
+        ? (isVertical ? height * 0.08 : height * 0.12) 
+        : (isVertical ? height * 0.92 : height * 0.88);
+      
+      ctx.fillText(metadataText, width / 2, metaY);
+      
+      if (styleConfig.reciterName) {
+        ctx.font = `500 ${reciterFontSize}px var(--font-sans)`;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        
+        const reciterText = isArabicUI 
+          ? `بصوت: ${styleConfig.reciterName}` 
+          : `Reciter: ${styleConfig.reciterName}`;
+        ctx.fillText(reciterText, width / 2, metaY + (16 * scaleMultiplier));
+      }
       ctx.restore();
     }
 

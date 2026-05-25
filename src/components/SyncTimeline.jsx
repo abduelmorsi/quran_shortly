@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, AlertCircle, Space, CheckCircle2, ChevronRight, Edit3 } from 'lucide-react';
+import { Play, Pause, RotateCcw, AlertCircle, Space, CheckCircle2, ChevronRight, Edit3, Zap } from 'lucide-react';
 
 export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTimestamps, t, lang }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -78,6 +78,41 @@ export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTi
     setActiveSyncIndex(0);
     setTimestamps(new Array(verses.length).fill(null));
     setLastEndTimestamp(null);
+  };
+
+  const handleAutoSync = () => {
+    if (!audio) return;
+    
+    // Pause audio if playing
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setIsPlaying(false);
+    
+    const duration = audio.duration || 30; // Fallback to 30s if not loaded
+    
+    // 1. Calculate the total character length of all verses (excluding spaces)
+    const totalChars = verses.reduce((sum, v) => sum + v.text.replace(/\s/g, '').length, 0);
+    
+    // 2. Generate timestamps proportionally based on character weight
+    const nextTimestamps = [];
+    let elapsed = 0;
+    
+    for (let i = 0; i < verses.length; i++) {
+      nextTimestamps.push(elapsed);
+      const ratio = verses[i].text.replace(/\s/g, '').length / totalChars;
+      elapsed += ratio * duration;
+    }
+    
+    const finalEnd = duration;
+    
+    // 3. Update the local timeline states
+    setTimestamps(nextTimestamps);
+    setLastEndTimestamp(finalEnd);
+    setActiveSyncIndex(verses.length + 1); // Set index to sync complete
+    
+    // 4. Trigger sync complete callback in App
+    onSyncCompleted([...nextTimestamps, finalEnd]);
   };
 
   const handleTapVerse = () => {
@@ -258,6 +293,24 @@ export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTi
             <button className="btn btn-danger" onClick={resetSync} style={{ padding: '10px 18px', borderRadius: '30px' }}>
               <RotateCcw size={16} />
               {t.resetSync}
+            </button>
+
+            <button 
+              className="btn" 
+              onClick={handleAutoSync} 
+              style={{ 
+                padding: '10px 18px', 
+                borderRadius: '30px', 
+                background: 'rgba(16, 185, 129, 0.12)', 
+                borderColor: 'rgba(16, 185, 129, 0.3)', 
+                color: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Zap size={15} style={{ fill: 'currentColor' }} />
+              <span>{t.autoSyncBtn}</span>
             </button>
 
             <span className="audio-time-label" style={{ marginLeft: lang === 'ar' ? '0' : 'auto', marginRight: lang === 'ar' ? 'auto' : '0' }}>
