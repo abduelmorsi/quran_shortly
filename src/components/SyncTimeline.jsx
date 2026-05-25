@@ -94,25 +94,44 @@ export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTi
     // 1. Calculate the total character length of all verses (excluding spaces)
     const totalChars = verses.reduce((sum, v) => sum + v.text.replace(/\s/g, '').length, 0);
     
-    // 2. Generate timestamps proportionally based on character weight
+    // 2. Heuristically estimate if the audio is much longer than the selected verses.
+    // A standard slowly/moderately recited Quranic recitation has a speed of about 4.5 characters per second.
+    const averageCharsPerSec = 4.5;
+    const estimatedNeededDuration = totalChars / averageCharsPerSec;
+    
+    // If the selected verses only cover a fraction of the audio duration (less than 80%),
+    // we align them using a standard recitation speed so they don't overstretch,
+    // and let the final verse fade out naturally, leaving the rest of the audio uncaptioned.
+    const shouldScaleToFullDuration = estimatedNeededDuration >= duration * 0.8;
+    
     const nextTimestamps = [];
     let elapsed = 0;
     
-    for (let i = 0; i < verses.length; i++) {
-      nextTimestamps.push(elapsed);
-      const ratio = verses[i].text.replace(/\s/g, '').length / totalChars;
-      elapsed += ratio * duration;
+    if (shouldScaleToFullDuration) {
+      // Proportional scaling over the entire audio duration (full Surah matches audio)
+      for (let i = 0; i < verses.length; i++) {
+        nextTimestamps.push(elapsed);
+        const ratio = verses[i].text.replace(/\s/g, '').length / totalChars;
+        elapsed += ratio * duration;
+      }
+      const finalEnd = duration;
+      setTimestamps(nextTimestamps);
+      setLastEndTimestamp(finalEnd);
+      setActiveSyncIndex(verses.length + 1);
+      onSyncCompleted([...nextTimestamps, finalEnd]);
+    } else {
+      // Audio is longer than the selected range. Space them realistically.
+      for (let i = 0; i < verses.length; i++) {
+        nextTimestamps.push(elapsed);
+        const ratio = verses[i].text.replace(/\s/g, '').length / totalChars;
+        elapsed += ratio * estimatedNeededDuration;
+      }
+      const finalEnd = Math.min(elapsed, duration);
+      setTimestamps(nextTimestamps);
+      setLastEndTimestamp(finalEnd);
+      setActiveSyncIndex(verses.length + 1);
+      onSyncCompleted([...nextTimestamps, finalEnd]);
     }
-    
-    const finalEnd = duration;
-    
-    // 3. Update the local timeline states
-    setTimestamps(nextTimestamps);
-    setLastEndTimestamp(finalEnd);
-    setActiveSyncIndex(verses.length + 1); // Set index to sync complete
-    
-    // 4. Trigger sync complete callback in App
-    onSyncCompleted([...nextTimestamps, finalEnd]);
   };
 
   const handleTapVerse = () => {
@@ -313,7 +332,12 @@ export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTi
               <span>{t.autoSyncBtn}</span>
             </button>
 
-            <span className="audio-time-label" style={{ marginLeft: lang === 'ar' ? '0' : 'auto', marginRight: lang === 'ar' ? 'auto' : '0' }}>
+            <span className="audio-time-label" style={{ 
+              marginLeft: lang === 'ar' ? '0' : 'auto', 
+              marginRight: lang === 'ar' ? 'auto' : '0',
+              direction: 'ltr',
+              display: 'inline-block'
+            }}>
               {formatTime(currentTime)} / {formatTime(audio.duration)}
             </span>
           </div>
@@ -329,7 +353,8 @@ export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTi
               position: 'relative',
               cursor: 'pointer',
               overflow: 'hidden',
-              border: '1px solid var(--border-default)'
+              border: '1px solid var(--border-default)',
+              direction: 'ltr'
             }}
           >
             {/* Synced verses background tracks on timeline */}

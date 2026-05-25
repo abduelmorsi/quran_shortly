@@ -68,9 +68,9 @@ export default function SurahSelector({ onSurahSelected, currentSelection, t }) 
       setAllVerses(data.verses);
       setVersesCount(surah.numberOfAyahs);
       
-      // Default to select all verses of the Surah (capped to 20 by default so sync is manageable, or all if short)
+      // Default to select all verses of the Surah
       setStartVerse(1);
-      const initialEnd = Math.min(surah.numberOfAyahs, 10);
+      const initialEnd = surah.numberOfAyahs;
       setEndVerse(initialEnd);
       
       triggerSelectionUpdate(surah, data.verses, 1, initialEnd);
