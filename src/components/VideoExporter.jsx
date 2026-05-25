@@ -176,7 +176,16 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
       const cardWidth = cardMaxWidth;
       const cardHeight = totalContentHeight + (paddingY * 2);
       const cardX = (width - cardWidth) / 2;
-      const cardY = overlayY - (cardHeight / 2);
+      let cardY = overlayY - (cardHeight / 2);
+
+      // Safe bounds layout constraint: slide card up or down to guarantee it never overflows the viewport
+      const safeMargin = 16 * scaleMultiplier;
+      if (cardY < safeMargin) {
+        cardY = safeMargin;
+      }
+      if (cardY + cardHeight > height - safeMargin) {
+        cardY = height - cardHeight - safeMargin;
+      }
 
       // Card style rendering
       if (styleConfig.cardStyle === 'glass') {

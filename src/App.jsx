@@ -31,10 +31,10 @@ function App() {
     customBg: null,     // { file, url, type, name }
     cardStyle: 'glass',  // 'glass', 'classic', 'none'
     arabicFont: 'quranic', // 'quranic' (Scheherazade) or 'classic' (Amiri)
-    arabicFontSize: 44,
+    arabicFontSize: 36,
     arabicColor: '#d4af37', // Golden color default
     showEnglish: true,
-    englishFontSize: 18,
+    englishFontSize: 16,
     overlayPosition: 'bottom', // 'top', 'center', 'bottom'
     surahName: '',
     surahNameArabic: '',

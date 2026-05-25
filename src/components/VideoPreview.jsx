@@ -345,7 +345,16 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       const cardWidth = cardMaxWidth;
       const cardHeight = totalContentHeight + (paddingY * 2);
       const cardX = (width - cardWidth) / 2;
-      const cardY = overlayY - (cardHeight / 2); // Center card vertically on alignment point
+      let cardY = overlayY - (cardHeight / 2); // Center card vertically on alignment point
+
+      // Safe bounds layout constraint: slide card up or down to guarantee it never overflows the viewport
+      const safeMargin = 16;
+      if (cardY < safeMargin) {
+        cardY = safeMargin;
+      }
+      if (cardY + cardHeight > height - safeMargin) {
+        cardY = height - cardHeight - safeMargin;
+      }
 
       // Draw Card Backdrop
       if (styleConfig.cardStyle === 'glass') {
