@@ -323,7 +323,7 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       const arabicLineHeight = arabicFontSize * 2.2; // Exceptional line height for stacked Quranic vocalization (tashkeel)
       
       const englishFontSize = styleConfig.englishFontSize;
-      const englishLineHeight = englishFontSize * 1.45; // Premium vertical space for subtitles
+      const englishLineHeight = englishFontSize * 1.65; // Premium vertical space for subtitles (increased for legibility)
 
       // Calculate heights and wrap texts to size the card beforehand
       ctx.font = `bold ${arabicFontSize}px ${arabicFont}`;
@@ -331,7 +331,7 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       
       let englishLines = [];
       if (styleConfig.showEnglish) {
-        ctx.font = `${englishFontSize}px var(--font-sans)`;
+        ctx.font = `${englishFontSize}px 'Outfit', 'Inter', sans-serif`;
         englishLines = wrapText(ctx, activeVerse.translation, 0, 0, cardMaxWidth - (paddingX * 2), englishLineHeight, false);
       }
 
@@ -408,7 +408,7 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       // Draw English Subtitles
       if (styleConfig.showEnglish && englishLines.length > 0) {
         ctx.save();
-        ctx.font = `500 ${englishFontSize}px var(--font-sans)`;
+        ctx.font = `500 ${englishFontSize}px 'Outfit', 'Inter', sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
@@ -435,7 +435,7 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       const metaFontSize = 14;
       const reciterFontSize = 12;
       
-      ctx.font = `600 ${metaFontSize}px var(--font-sans)`;
+      ctx.font = `600 ${metaFontSize}px 'Outfit', 'Inter', sans-serif`;
       ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
       ctx.textAlign = 'center';
       
@@ -475,7 +475,7 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       ctx.fillText(metadataText, width / 2, metaY);
       
       if (styleConfig.reciterName) {
-        ctx.font = `500 ${reciterFontSize}px var(--font-sans)`;
+        ctx.font = `500 ${reciterFontSize}px 'Outfit', 'Inter', sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
         
         const reciterText = isArabicUI 
