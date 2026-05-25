@@ -186,6 +186,7 @@ function App() {
             <SyncTimeline
               audio={audio}
               verses={quranSelection.slicedVerses}
+              allVerses={quranSelection.allVerses}
               onSyncCompleted={handleSyncCompleted}
               currentTimestamps={timestamps}
               t={t}

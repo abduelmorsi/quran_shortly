@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, AlertCircle, Space, CheckCircle2, ChevronRight, Edit3, Zap } from 'lucide-react';
 
-export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTimestamps, t, lang }) {
+export default function SyncTimeline({ audio, verses, allVerses, onSyncCompleted, currentTimestamps, t, lang }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [activeSyncIndex, setActiveSyncIndex] = useState(0);
@@ -91,47 +91,53 @@ export default function SyncTimeline({ audio, verses, onSyncCompleted, currentTi
     
     const duration = audio.duration || 30; // Fallback to 30s if not loaded
     
-    // 1. Calculate the total character length of all verses (excluding spaces)
-    const totalChars = verses.reduce((sum, v) => sum + v.text.replace(/\s/g, '').length, 0);
+    // 1. Calculate character lengths
+    const selectedChars = verses.reduce((sum, v) => sum + v.text.replace(/\s/g, '').length, 0);
+    const surahTotalChars = allVerses ? allVerses.reduce((sum, v) => sum + v.text.replace(/\s/g, '').length, 0) : selectedChars;
     
-    // 2. Heuristically estimate if the audio is much longer than the selected verses.
-    // A standard slowly/moderately recited Quranic recitation has a speed of about 4.5 characters per second.
-    const averageCharsPerSec = 4.5;
-    const estimatedNeededDuration = totalChars / averageCharsPerSec;
+    // 2. Estimate recitation speeds
+    // A standard slowly/moderately recited Quranic recitation has a speed of about 6.9 characters per second (including Uthmani diacritics).
+    const standardCharsPerSec = 6.9;
+    const estimatedFullSurahDuration = surahTotalChars / standardCharsPerSec;
     
-    // If the selected verses only cover a fraction of the audio duration (less than 80%),
-    // we align them using a standard recitation speed so they don't overstretch,
-    // and let the final verse fade out naturally, leaving the rest of the audio uncaptioned.
-    const shouldScaleToFullDuration = estimatedNeededDuration >= duration * 0.8;
+    // If the audio duration is close to or longer than the estimated full Surah duration,
+    // it is highly likely the audio represents the entire Surah.
+    // In that case, we should calculate the recitation speed based on the full Surah.
+    const isFullSurahAudio = duration >= estimatedFullSurahDuration * 0.75;
     
+    let recitationSpeed = standardCharsPerSec;
+    if (isFullSurahAudio) {
+      recitationSpeed = surahTotalChars / duration;
+    } else {
+      recitationSpeed = selectedChars / duration;
+    }
+    
+    // 3. Generate timestamps using this speed
     const nextTimestamps = [];
     let elapsed = 0;
     
-    if (shouldScaleToFullDuration) {
-      // Proportional scaling over the entire audio duration (full Surah matches audio)
-      for (let i = 0; i < verses.length; i++) {
-        nextTimestamps.push(elapsed);
-        const ratio = verses[i].text.replace(/\s/g, '').length / totalChars;
-        elapsed += ratio * duration;
+    // Find the offset of the selected verses relative to the start of the Surah (if full Surah audio)
+    if (isFullSurahAudio && allVerses && verses.length > 0) {
+      const startIndex = allVerses.findIndex(v => v.numberInSurah === verses[0].numberInSurah);
+      if (startIndex > 0) {
+        // Calculate the elapsed time up to the first selected verse
+        const leadingChars = allVerses.slice(0, startIndex).reduce((sum, v) => sum + v.text.replace(/\s/g, '').length, 0);
+        elapsed = leadingChars / recitationSpeed;
       }
-      const finalEnd = duration;
-      setTimestamps(nextTimestamps);
-      setLastEndTimestamp(finalEnd);
-      setActiveSyncIndex(verses.length + 1);
-      onSyncCompleted([...nextTimestamps, finalEnd]);
-    } else {
-      // Audio is longer than the selected range. Space them realistically.
-      for (let i = 0; i < verses.length; i++) {
-        nextTimestamps.push(elapsed);
-        const ratio = verses[i].text.replace(/\s/g, '').length / totalChars;
-        elapsed += ratio * estimatedNeededDuration;
-      }
-      const finalEnd = Math.min(elapsed, duration);
-      setTimestamps(nextTimestamps);
-      setLastEndTimestamp(finalEnd);
-      setActiveSyncIndex(verses.length + 1);
-      onSyncCompleted([...nextTimestamps, finalEnd]);
     }
+    
+    for (let i = 0; i < verses.length; i++) {
+      nextTimestamps.push(elapsed);
+      const charLength = verses[i].text.replace(/\s/g, '').length;
+      elapsed += charLength / recitationSpeed;
+    }
+    
+    const finalEnd = Math.min(elapsed, duration);
+    setTimestamps(nextTimestamps);
+    setLastEndTimestamp(finalEnd);
+    setActiveSyncIndex(verses.length + 1);
+    
+    onSyncCompleted([...nextTimestamps, finalEnd]);
   };
 
   const handleTapVerse = () => {
