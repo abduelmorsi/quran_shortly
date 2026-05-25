@@ -8,6 +8,24 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [isMp4Supported, setIsMp4Supported] = useState(false);
+  const [outputFormat, setOutputFormat] = useState('webm');
+
+  useEffect(() => {
+    // Check if MP4 recording is supported in this browser
+    const supported = MediaRecorder.isTypeSupported('video/mp4') || 
+                      MediaRecorder.isTypeSupported('video/mp4;codecs=h264') ||
+                      MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2');
+    setIsMp4Supported(supported);
+    
+    // Default to MP4 if supported, otherwise WebM
+    if (supported) {
+      setOutputFormat('mp4');
+    } else {
+      setOutputFormat('webm');
+    }
+  }, []);
+
   const exportCanvasRef = useRef(null);
   const exportAudioRef = useRef(null);
   const videoSourceRef = useRef(null);
@@ -327,12 +345,31 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
       recordedStream.addTrack(canvasStream.getVideoTracks()[0]);
       recordedStream.addTrack(audioDestinationNode.stream.getAudioTracks()[0]);
 
-      // 4. Select standard mimeTypes
+      // 4. Select standard mimeTypes based on user choice
       let mimeType = 'video/webm;codecs=vp9,opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm;codecs=vp8,opus';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = 'video/webm';
+      
+      if (outputFormat === 'mp4') {
+        const mp4Types = [
+          'video/mp4;codecs=avc1,mp4a.40.2',
+          'video/mp4;codecs=h264,aac',
+          'video/mp4;codecs=vp9,opus',
+          'video/mp4'
+        ];
+        const supportedType = mp4Types.find(type => MediaRecorder.isTypeSupported(type));
+        if (supportedType) {
+          mimeType = supportedType;
+        } else {
+          mimeType = 'video/mp4';
+        }
+      } else {
+        const webmTypes = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm'
+        ];
+        const supportedType = webmTypes.find(type => MediaRecorder.isTypeSupported(type));
+        if (supportedType) {
+          mimeType = supportedType;
         }
       }
 
@@ -403,7 +440,8 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
   const getFileName = () => {
     const surahName = styleConfig.surahName || 'Quran';
     const range = `${timestamps[0] ? 'synced' : 'edit'}`;
-    return `Quran_Shortly_${surahName}_${range}.webm`;
+    const ext = outputFormat === 'mp4' ? 'mp4' : 'webm';
+    return `Quran_Shortly_${surahName}_${range}.${ext}`;
   };
 
   return (
@@ -468,8 +506,39 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>{t.outputFormatLabel}</span>
-              <strong style={{ color: '#fff' }}>{t.formatValue}</strong>
+              <strong style={{ color: '#fff' }}>{outputFormat.toUpperCase()} Video</strong>
             </div>
+          </div>
+
+          {/* Format Selector Choice */}
+          <div style={{ width: '100%', textAlign: 'initial', marginTop: '4px', marginBottom: '4px' }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              {t.outputFormatOption || 'Video Output Format'}
+            </label>
+            <div className="grid-2col" style={{ marginTop: '6px' }}>
+              <button
+                className={`style-option-btn ${outputFormat === 'mp4' ? 'active' : ''}`}
+                onClick={() => isMp4Supported && setOutputFormat('mp4')}
+                disabled={!isMp4Supported}
+                style={{ opacity: isMp4Supported ? 1 : 0.4, cursor: isMp4Supported ? 'pointer' : 'not-allowed', padding: '12px 8px' }}
+              >
+                <span style={{ fontWeight: 700 }}>MP4</span>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{t.mp4Label || 'Highly Compatible'}</span>
+              </button>
+              <button
+                className={`style-option-btn ${outputFormat === 'webm' ? 'active' : ''}`}
+                onClick={() => setOutputFormat('webm')}
+                style={{ padding: '12px 8px' }}
+              >
+                <span style={{ fontWeight: 700 }}>WebM</span>
+                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{t.webmLabel || 'High Quality'}</span>
+              </button>
+            </div>
+            {!isMp4Supported && (
+              <p style={{ fontSize: '0.72rem', color: 'var(--danger)', marginTop: '8px', lineHeight: '1.4' }}>
+                ⚠️ {t.notSupportedNote || 'MP4 recording is not natively supported in your browser. Defaulting to WebM.'}
+              </p>
+            )}
           </div>
 
           <button className="btn btn-primary" onClick={handleStartExport} style={{ width: '100%', padding: '14px', fontSize: '1rem' }}>

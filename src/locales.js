@@ -115,7 +115,11 @@ export const translations = {
     formatSupportDesc: "The WebM file is ready for upload to YouTube Shorts, TikTok, and Instagram Reels.",
     failedTitle: "Compilation Failed",
     retry: "Retry Compilation",
-    editStyles: "Edit Style Options"
+    editStyles: "Edit Style Options",
+    outputFormatOption: "Video Output Format",
+    mp4Label: "MP4 (Highly Compatible)",
+    webmLabel: "WebM (High Quality)",
+    notSupportedNote: "MP4 format is not natively supported in your browser. Defaulting to WebM."
   },
   ar: {
     // App Header & Steps
@@ -233,6 +237,10 @@ export const translations = {
     formatSupportDesc: "ملف الفيديو بصيغة WebM جاهز للرفع على يوتيوب شورتس، تيك توك، وانستغرام ريلز.",
     failedTitle: "فشل تجميع الفيديو",
     retry: "إعادة المحاولة",
-    editStyles: "تعديل خيارات التصميم"
+    editStyles: "تعديل خيارات التصميم",
+    outputFormatOption: "خيار صيغة الفيديو",
+    mp4Label: "MP4 (توافقية عالية)",
+    webmLabel: "WebM (جودة عالية)",
+    notSupportedNote: "صيغة MP4 غير مدعومة في متصفحك حالياً. سيتم استخدام WebM تلقائياً."
   }
 };
