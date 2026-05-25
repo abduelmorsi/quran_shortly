@@ -154,7 +154,14 @@ export function drawGenerativeBackground(ctx, width, height, type, time) {
 
 // Helper to wrap Arabic & English text on canvas beautifully
 export function wrapText(ctx, text, x, y, maxWidth, lineHeight, isArabic) {
-  const words = text.split(' ');
+  let cleanedText = text || '';
+  if (isArabic && text) {
+    // Replace isolated Hamza followed by Fatha and Alef (\u0621\u064e\u0627) with Alif Maddah (\u0622)
+    // to prevent HTML5 Canvas from breaking complex ligatures like "الآن" or "ءامَنَ" in system fonts.
+    cleanedText = text.replace(/\u0621\u064e\u0627/g, '\u0622');
+  }
+
+  const words = cleanedText.split(' ');
   let line = '';
   let lines = [];
 
