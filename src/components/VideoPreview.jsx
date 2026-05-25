@@ -266,9 +266,9 @@ export default function VideoPreview({ audio, verses, timestamps, styleConfig })
       ctx.fillRect(0, 0, width, height);
       
       if (styleConfig.customBg.type === 'video' && videoElementRef.current) {
-        // Sync custom video time with audio time if playing (loop video)
+        // Sync custom video time with audio time if playing (loop video) safely without pile-up seeks
         const video = videoElementRef.current;
-        if (isPlaying && Math.abs(video.currentTime - (playTime % (video.duration || 10))) > 0.5) {
+        if (isPlaying && !video.seeking && Math.abs(video.currentTime - (playTime % (video.duration || 10))) > 0.5) {
           video.currentTime = playTime % (video.duration || 10);
         }
         ctx.drawImage(video, 0, 0, width, height);

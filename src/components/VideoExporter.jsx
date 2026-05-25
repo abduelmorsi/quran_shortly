@@ -99,8 +99,8 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
 
       if (styleConfig.customBg.type === 'video' && videoSourceRef.current) {
         const video = videoSourceRef.current;
-        // Keep video loops aligned with timestamps
-        if (Math.abs(video.currentTime - (playTime % (video.duration || 10))) > 0.5) {
+        // Keep video loops aligned with timestamps safely without pile-up seeks
+        if (!video.seeking && Math.abs(video.currentTime - (playTime % (video.duration || 10))) > 0.5) {
           video.currentTime = playTime % (video.duration || 10);
         }
         ctx.drawImage(video, 0, 0, width, height);
@@ -466,6 +466,7 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
           ref={videoSourceRef}
           src={styleConfig.customBg.url}
           style={{ display: 'none' }}
+          loop
           muted
           playsInline
           crossOrigin="anonymous"
