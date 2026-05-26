@@ -639,39 +639,6 @@ export default function VideoExporter({ audio, verses, timestamps, styleConfig, 
               {t.redesignStyle}
             </button>
           </div>
-
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            borderRadius: '16px',
-            padding: '16px',
-            marginTop: '8px',
-            textAlign: 'initial',
-            width: '100%',
-            fontSize: '0.8rem',
-            lineHeight: '1.5',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)'
-          }}>
-            {outputFormat === 'mp4' ? (
-              <>
-                <h4 style={{ margin: '0 0 6px 0', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                  ⚠️ {t.mp4NoticeTitle}
-                </h4>
-                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                  {t.mp4NoticeDesc}
-                </p>
-              </>
-            ) : (
-              <>
-                <h4 style={{ margin: '0 0 6px 0', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                  ✨ {t.webmNoticeTitle}
-                </h4>
-                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                  {t.webmNoticeDesc}
-                </p>
-              </>
-            )}
-          </div>
         </div>
       )}
 
