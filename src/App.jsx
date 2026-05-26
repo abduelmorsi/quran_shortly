@@ -163,7 +163,7 @@ function App() {
       </div>
 
       {/* MAIN STEP CONTENT SCENE */}
-      <main style={{ flex: 1 }}>
+      <main>
         {/* STEP 1: SETUP AUDIO AND SURAH RANGE */}
         {activeStep === 0 && (
           <div className="setup-container" style={{ animation: 'slideUp 0.4s ease-out' }}>

@@ -57,6 +57,9 @@ export const translations = {
     // Style Editor
     designTitle: "4. Design Your Video",
     designDesc: "Customize visual themes, typography, layout, and background loop style.",
+    layoutAccordionTitle: "Layout & Placement",
+    backgroundAccordionTitle: "Background & Atmosphere",
+    typographyAccordionTitle: "Typography & Styling",
     aspectRatio: "Aspect Ratio & Layout",
     vertical: "9:16 Vertical",
     verticalDesc: "(Shorts / Reels / TikTok)",
@@ -183,6 +186,9 @@ export const translations = {
     // Style Editor
     designTitle: "٤. تصميم مظهر الفيديو",
     designDesc: "قم بتخصيص السمات المرئية، والخطوط، والتنسيق، ونمط الخلفية المتحركة.",
+    layoutAccordionTitle: "التنسيق والمحاذاة",
+    backgroundAccordionTitle: "الخلفية والمؤثرات",
+    typographyAccordionTitle: "الخطوط والتصميم",
     aspectRatio: "أبعاد الفيديو والتنسيق",
     vertical: "٩:١٦ عمودي",
     verticalDesc: "(شورتس / ريلز / تيك توك)",

@@ -293,7 +293,7 @@ export default function SyncTimeline({ audio, verses, allVerses, onSyncCompleted
 
         {/* Large Satisfying Tap Button */}
         {activeSyncIndex <= verses.length && (
-          <button className="tap-button" onClick={handleTapVerse}>
+          <button className={`tap-button ${isPlaying ? 'pulsing-glow' : ''}`} onClick={handleTapVerse}>
             {activeSyncIndex < verses.length ? (
               <>
                 <span>{t.tapButtonStart} {activeSyncIndex + 1}</span>

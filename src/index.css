@@ -447,8 +447,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: #fff;
   border: none;
   border-radius: var(--radius-lg);
-  padding: 20px;
-  font-size: 1.15rem;
+  padding: 14px 18px;
+  font-size: 1.02rem;
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition-smooth);
@@ -456,7 +456,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .tap-button:hover {
@@ -465,6 +465,26 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .tap-button:active {
   transform: scale(0.98);
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(124, 107, 240, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 16px 6px rgba(124, 107, 240, 0.25);
+    transform: scale(1.015);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 107, 240, 0.4);
+    transform: scale(1);
+  }
+}
+
+.tap-button.pulsing-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+  background: #6b5dd3;
 }
 
 .tap-shortcut {
@@ -523,6 +543,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .queue-item.active {
   border-color: rgba(124, 107, 240, 0.4);
   background: var(--primary-muted);
+  border-inline-start: 4px solid var(--primary);
+  padding-inline-start: 8px;
 }
 
 .queue-item.synced {
@@ -1140,4 +1162,89 @@ input[type="range"]::-webkit-slider-thumb:hover {
   .background-presets {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ============ STYLE EDITOR ACCORDIONS ============ */
+.accordion-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color var(--transition-smooth);
+}
+
+.accordion-card:hover {
+  border-color: var(--border-hover);
+}
+
+.accordion-card.open {
+  border-color: var(--primary);
+}
+
+.accordion-header {
+  width: 100%;
+  background: transparent;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  color: #fff;
+  font-family: var(--font-sans);
+  text-align: inherit;
+  transition: background-color var(--transition-fast);
+}
+
+.accordion-header:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.accordion-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.accordion-chevron {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-secondary);
+}
+
+.accordion-card.open .accordion-chevron {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.accordion-content {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+.accordion-card.open .accordion-content {
+  max-height: 1200px;
+  opacity: 1;
+}
+
+.accordion-content-inner {
+  padding: 0 16px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accordion-content-inner .section-card {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 12px;
+}
+
+.accordion-content-inner .section-card-title {
+  margin-bottom: 10px;
+  padding-bottom: 6px;
 }
